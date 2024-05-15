@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useContext } from "react";
-import { silence } from "./lib/constants";
+import { silence } from "./lib/contants";
 import { randomId } from "./lib/utils";
 
 /**
