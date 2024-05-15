@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { silence } from "./lib/contants";
+import React, { useEffect, useState, useContext } from "react";
+import { silence } from "./lib/constants";
 import { randomId } from "./lib/utils";
 
 /**
@@ -42,6 +42,12 @@ interface NowPlayingContext extends Partial<Omit<HTMLAudioElement, "play">> {
    * An optional unique identifier for the currently playing audio source.
    */
   uid: string | undefined;
+
+  /**
+   * Registers a callback for the audio ended event.
+   * @param callback The function to call when the audio ends.
+   */
+  onAudioEnded: (callback: () => void) => void;
 }
 
 /**
@@ -51,29 +57,28 @@ interface NowPlayingContextInterface {
   children: React.ReactNode;
 }
 
-const NowPlayingContext = React.createContext({} as NowPlayingContext);
+const NowPlayingContext = React.createContext<NowPlayingContext>({} as NowPlayingContext);
+
+const eventTarget = new EventTarget();
 
 /**
  * Provides a React context for managing audio playback within the app.
  * This component sets up the audio player and source elements, and provides play, stop, and resume functions.
  */
 const NowPlayingContextProvider = ({ children }: NowPlayingContextInterface) => {
-  const [player, setPlayer] = React.useState<HTMLAudioElement>();
-  const [source, setSource] = React.useState<HTMLSourceElement>();
-  const [uid, setUid] = React.useState<string>();
+  const [player, setPlayer] = useState<HTMLAudioElement>();
+  const [source, setSource] = useState<HTMLSourceElement>();
+  const [uid, setUid] = useState<string>();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const onEnded = () => {
       setUid(undefined);
+      eventTarget.dispatchEvent(new Event("audioEnded"));
     };
 
     if (!player) {
-      const player: HTMLAudioElement = document.getElementById(
-        "react-nowplaying"
-      ) as HTMLAudioElement;
-      const source: HTMLSourceElement = document.getElementById(
-        "react-nowplaying-src"
-      ) as HTMLSourceElement;
+      const player: HTMLAudioElement = document.getElementById("react-nowplaying") as HTMLAudioElement;
+      const source: HTMLSourceElement = document.getElementById("react-nowplaying-src") as HTMLSourceElement;
 
       player.addEventListener("ended", onEnded);
 
@@ -84,7 +89,7 @@ const NowPlayingContextProvider = ({ children }: NowPlayingContextInterface) => 
     return () => {
       player?.removeEventListener("ended", onEnded);
     };
-  }, []);
+  }, [player]);
 
   const play = async (
     audio: MediaSource | Blob | string,
@@ -125,6 +130,10 @@ const NowPlayingContextProvider = ({ children }: NowPlayingContextInterface) => 
     player.play();
   };
 
+  const onAudioEnded = (callback: () => void) => {
+    eventTarget.addEventListener("audioEnded", callback);
+  };
+
   return (
     <NowPlayingContext.Provider
       value={{
@@ -134,6 +143,7 @@ const NowPlayingContextProvider = ({ children }: NowPlayingContextInterface) => 
         resume,
         stop,
         uid,
+        onAudioEnded,
         ...player,
       }}
     >
@@ -150,7 +160,7 @@ const NowPlayingContextProvider = ({ children }: NowPlayingContextInterface) => 
  * @returns The NowPlayingContext with audio playback control functions.
  */
 function useNowPlaying() {
-  return React.useContext(NowPlayingContext);
+  return useContext(NowPlayingContext);
 }
 
 export { NowPlayingContextProvider, useNowPlaying };
